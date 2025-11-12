@@ -4,19 +4,21 @@ const User = require('../models/User');
 
 const router = express.Router();
 
-// Função para gerar token JWT
+// Gera um token JWT assinado para o identificador informado.
 const gerarToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 };
 
-// POST /auth/register - Registrar cliente
+/**
+ * POST /auth/register
+ * Registra um novo cliente e retorna o token de autenticação.
+ */
 router.post('/register', async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
 
-    // Validação básica
     if (!nome || !email || !senha) {
       return res.status(400).json({
         success: false,
@@ -24,7 +26,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Verificar se usuário já existe
     const userExistente = await User.findOne({ email });
     if (userExistente) {
       return res.status(400).json({
@@ -33,7 +34,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Criar usuário
     const user = await User.create({
       nome,
       email,
@@ -41,7 +41,6 @@ router.post('/register', async (req, res) => {
       role: 'client'
     });
 
-    // Gerar token
     const token = gerarToken(user._id);
 
     res.status(201).json({
@@ -66,12 +65,14 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /auth/login - Login de cliente
+/**
+ * POST /auth/login
+ * Autentica um cliente e retorna o token de acesso.
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
 
-    // Validação básica
     if (!email || !senha) {
       return res.status(400).json({
         success: false,
@@ -79,7 +80,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Buscar usuário com senha
     const user = await User.findOne({ email }).select('+senha');
     
     if (!user) {
@@ -89,7 +89,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Verificar senha
     const senhaCorreta = await user.compararSenha(senha);
     
     if (!senhaCorreta) {
@@ -99,7 +98,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Verificar se está ativo
     if (!user.ativo) {
       return res.status(401).json({
         success: false,
@@ -107,7 +105,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Gerar token
     const token = gerarToken(user._id);
 
     res.json({
@@ -132,12 +129,14 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /auth/admin/register-once - Registrar único admin
+/**
+ * POST /auth/admin/register-once
+ * Registra o primeiro administrador mediante chave de segurança.
+ */
 router.post('/admin/register-once', async (req, res) => {
   try {
     const { nome, email, senha, adminKey } = req.body;
 
-    // Validação básica
     if (!nome || !email || !senha || !adminKey) {
       return res.status(400).json({
         success: false,
@@ -145,7 +144,6 @@ router.post('/admin/register-once', async (req, res) => {
       });
     }
 
-    // Verificar chave de admin
     if (adminKey !== process.env.ADMIN_REGISTRATION_KEY) {
       return res.status(403).json({
         success: false,
@@ -153,7 +151,6 @@ router.post('/admin/register-once', async (req, res) => {
       });
     }
 
-    // Verificar se já existe um admin
     const adminExistente = await User.findOne({ role: 'admin' });
     if (adminExistente) {
       return res.status(400).json({
@@ -162,7 +159,6 @@ router.post('/admin/register-once', async (req, res) => {
       });
     }
 
-    // Verificar se email já existe
     const emailExistente = await User.findOne({ email });
     if (emailExistente) {
       return res.status(400).json({
@@ -171,7 +167,6 @@ router.post('/admin/register-once', async (req, res) => {
       });
     }
 
-    // Criar admin
     const admin = await User.create({
       nome,
       email,
@@ -179,7 +174,6 @@ router.post('/admin/register-once', async (req, res) => {
       role: 'admin'
     });
 
-    // Gerar token
     const token = gerarToken(admin._id);
 
     res.status(201).json({
@@ -204,12 +198,14 @@ router.post('/admin/register-once', async (req, res) => {
   }
 });
 
-// POST /auth/admin/login - Login de admin
+/**
+ * POST /auth/admin/login
+ * Autentica um administrador e retorna o token de acesso.
+ */
 router.post('/admin/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
 
-    // Validação básica
     if (!email || !senha) {
       return res.status(400).json({
         success: false,
@@ -217,7 +213,6 @@ router.post('/admin/login', async (req, res) => {
       });
     }
 
-    // Buscar admin com senha
     const admin = await User.findOne({ email, role: 'admin' }).select('+senha');
     
     if (!admin) {
@@ -227,7 +222,6 @@ router.post('/admin/login', async (req, res) => {
       });
     }
 
-    // Verificar senha
     const senhaCorreta = await admin.compararSenha(senha);
     
     if (!senhaCorreta) {
@@ -237,7 +231,6 @@ router.post('/admin/login', async (req, res) => {
       });
     }
 
-    // Verificar se está ativo
     if (!admin.ativo) {
       return res.status(401).json({
         success: false,
@@ -245,7 +238,6 @@ router.post('/admin/login', async (req, res) => {
       });
     }
 
-    // Gerar token
     const token = gerarToken(admin._id);
 
     res.json({

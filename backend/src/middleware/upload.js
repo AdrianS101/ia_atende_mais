@@ -3,17 +3,16 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 
 const connectToDatabase = require('../config/database');
 
-// Configuração do GridFS Storage
+// Configuração compartilhada de armazenamento no GridFS.
 const storage = new GridFsStorage({
   db: connectToDatabase().then((connection) => connection.db),
   file: (req, file) => {
-    // Gerar nome único: timestamp + random + extensão original
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = file.originalname.split('.').pop();
     const name = file.originalname.replace(/\s+/g, '-').replace(/\.[^.]+$/, '');
     return {
       filename: `${name}-${uniqueSuffix}.${ext}`,
-      bucketName: 'uploads', // Nome do bucket GridFS
+      bucketName: 'uploads',
       metadata: {
         originalname: file.originalname,
         mimetype: file.mimetype,
@@ -23,10 +22,9 @@ const storage = new GridFsStorage({
   }
 });
 
-// Filtro de tipos de arquivo por tipo de documento
+// Seleciona os tipos de arquivos permitidos de acordo com o documento solicitado.
 const createFileFilter = (tipoDocumento) => {
   return (req, file, cb) => {
-    // Tipos permitidos para documentos gerais
     const tiposDocumentosGerais = [
       'application/pdf',
       'application/msword',
@@ -36,7 +34,6 @@ const createFileFilter = (tipoDocumento) => {
       'image/png'
     ];
 
-    // Tipos permitidos apenas para logotipo
     const tiposLogotipo = [
       'image/png',
       'image/jpg',
@@ -45,8 +42,7 @@ const createFileFilter = (tipoDocumento) => {
     ];
 
     let tiposPermitidos;
-    
-    // Determinar tipos permitidos baseado no tipo de documento
+
     if (tipoDocumento === 'logotipo') {
       tiposPermitidos = tiposLogotipo;
     } else {
@@ -64,18 +60,18 @@ const createFileFilter = (tipoDocumento) => {
   };
 };
 
-// Criar configurações de upload específicas por tipo
+// Cria instâncias de upload específicas para cada tipo de documento.
 const createUpload = (tipoDocumento) => {
   return multer({
     storage: storage,
     limits: {
-      fileSize: tipoDocumento === 'logotipo' ? 2 * 1024 * 1024 : 10 * 1024 * 1024 // 2MB para logo, 10MB para documentos
+      fileSize: tipoDocumento === 'logotipo' ? 2 * 1024 * 1024 : 10 * 1024 * 1024
     },
     fileFilter: createFileFilter(tipoDocumento)
   });
 };
 
-// Exports de uploads específicos
+// Controladores especializados por documento.
 const uploads = {
   contratoSocial: createUpload('contrato_social'),
   rgCpf: createUpload('rg_cpf'),
@@ -83,11 +79,11 @@ const uploads = {
   logotipo: createUpload('logotipo')
 };
 
-// Upload genérico (para múltiplos tipos)
+// Instância genérica para uploads sem validação de tipo específica.
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB
+    fileSize: 10 * 1024 * 1024
   },
   fileFilter: (req, file, cb) => {
     const tiposPermitidos = [
@@ -108,7 +104,7 @@ const upload = multer({
   }
 });
 
-// Middleware para tratar erros do multer
+// Padroniza a resposta de erros lançados pelo Multer.
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {

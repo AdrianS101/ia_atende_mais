@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash da senha antes de salvar
+// Prepara o hash da senha sempre que houver alteração antes de persistir no banco.
 userSchema.pre('save', async function(next) {
   if (!this.isModified('senha')) return next();
   
@@ -51,12 +51,12 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Método para comparar senhas
+// Compara a senha informada com o hash persistido.
 userSchema.methods.compararSenha = async function(senhaCandidata) {
   return await bcrypt.compare(senhaCandidata, this.senha);
 };
 
-// Método para remover senha do objeto retornado
+// Remove o campo `senha` das respostas serializadas.
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.senha;

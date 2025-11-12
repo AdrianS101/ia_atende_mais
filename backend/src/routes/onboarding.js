@@ -2,15 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Onboarding = require('../models/Onboarding');
 const { auth, isAdmin } = require('../middleware/auth');
-const { uploadGridFS } = require('../middleware/uploadGridFS'); // novo middleware de upload via GridFS
+const { uploadGridFS } = require('../middleware/uploadGridFS');
 
 const router = express.Router();
 
-// ============================================
-// ROTAS DE CLIENTE
-// ============================================
-
-// POST /onboarding/create - Criar ou atualizar onboarding completo
+/**
+ * POST /onboarding/create
+ * Cria ou atualiza o onboarding completo para o usuário autenticado.
+ */
 router.post('/create', auth, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -83,6 +82,10 @@ router.post('/create', auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /onboarding/:userId
+ * Recupera o onboarding associado ao usuário informado.
+ */
 router.get('/:userId', auth, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -110,15 +113,15 @@ router.get('/:userId', auth, async (req, res) => {
   }
 });
 
-// ============================================
-// PUT /onboarding/:id - Editar onboarding (somente o próprio usuário)
-// ============================================
+/**
+ * PUT /onboarding/:id
+ * Permite ao usuário autenticado editar o próprio onboarding.
+ */
 router.put('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
 
-    // Verifica se o onboarding pertence ao usuário autenticado
     const onboarding = await Onboarding.findOne({ _id: id, userId });
     if (!onboarding) {
       return res.status(403).json({
@@ -127,7 +130,6 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    // Campos permitidos para edição
     const {
       dadosCadastrais,
       endereco,
@@ -140,7 +142,6 @@ router.put('/:id', auth, async (req, res) => {
       integrationsAndSettings
     } = req.body;
 
-    // Atualiza apenas os campos informados
     if (dadosCadastrais) onboarding.dadosCadastrais = dadosCadastrais;
     if (endereco) onboarding.endereco = endereco;
     if (representantesLegais) onboarding.representantesLegais = representantesLegais;
@@ -170,12 +171,10 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-
-// ============================================
-// UPLOAD DE ARQUIVOS VIA GRIDFS
-// ============================================
-
-// POST /onboarding/files/add - Upload de arquivo
+/**
+ * POST /onboarding/files/add
+ * Realiza o upload de arquivos associados ao onboarding via GridFS.
+ */
 router.post('/files/add', auth, uploadGridFS.single('file'), async (req, res) => {
   try {
     const userId = req.user._id;
@@ -189,7 +188,6 @@ router.post('/files/add', auth, uploadGridFS.single('file'), async (req, res) =>
       });
     }
 
-    // Buscar ou criar onboarding
     let onboarding = await Onboarding.findOne({ userId });
     if (!onboarding) {
       return res.status(404).json({
@@ -198,7 +196,6 @@ router.post('/files/add', auth, uploadGridFS.single('file'), async (req, res) =>
       });
     }
 
-    // Adicionar metadados do arquivo
     const novoArquivo = {
       fileId: file.id,
       filename: file.filename,
@@ -224,7 +221,10 @@ router.post('/files/add', auth, uploadGridFS.single('file'), async (req, res) =>
   }
 });
 
-// GET /onboarding/files/:id - Download de arquivo
+/**
+ * GET /onboarding/files/:id
+ * Faz o streaming de um arquivo armazenado no GridFS.
+ */
 router.get('/files/:id', auth, async (req, res) => {
   try {
     const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
@@ -247,7 +247,10 @@ router.get('/files/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /onboarding/files/:id - Deletar arquivo
+/**
+ * DELETE /onboarding/files/:id
+ * Remove um arquivo do GridFS e a referência no documento de onboarding.
+ */
 router.delete('/files/:id', auth, async (req, res) => {
   try {
     const fileId = new mongoose.Types.ObjectId(req.params.id);
@@ -261,7 +264,6 @@ router.delete('/files/:id', auth, async (req, res) => {
       });
     }
 
-    // Verifica se o arquivo pertence ao usuário
     const arquivo = onboarding.documentos.find(doc => doc.fileId.toString() === fileId.toString());
     if (!arquivo) {
       return res.status(404).json({
@@ -270,11 +272,9 @@ router.delete('/files/:id', auth, async (req, res) => {
       });
     }
 
-    // Deleta no GridFS
     const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
     await bucket.delete(fileId);
 
-    // Remove referência do Mongo
     onboarding.documentos = onboarding.documentos.filter(doc => doc.fileId.toString() !== fileId.toString());
     await onboarding.save();
 
@@ -291,11 +291,10 @@ router.delete('/files/:id', auth, async (req, res) => {
   }
 });
 
-// ============================================
-// ROTAS ADMIN
-// ============================================
-
-// GET /onboarding - Listar todos (admin)
+/**
+ * GET /onboarding
+ * Lista todos os onboardings (acesso restrito a administradores).
+ */
 router.get('/', auth, isAdmin, async (req, res) => {
   try {
     const onboardings = await Onboarding.find().populate('userId', 'nome email');
@@ -309,7 +308,10 @@ router.get('/', auth, isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /onboarding/:id - Excluir onboarding (admin)
+/**
+ * DELETE /onboarding/:id
+ * Exclui um onboarding e remove os arquivos associados no GridFS.
+ */
 router.delete('/:id', auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -319,7 +321,6 @@ router.delete('/:id', auth, isAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Onboarding não encontrado' });
     }
 
-    // Deleta arquivos do GridFS
     const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
     for (const doc of onboarding.documentos) {
       try {
@@ -341,13 +342,15 @@ router.delete('/:id', auth, isAdmin, async (req, res) => {
   }
 });
 
-// PATCH /onboarding/:id/status - Atualizar status (admin only)
+/**
+ * PATCH /onboarding/:id/status
+ * Atualiza o status do onboarding (restrito a administradores).
+ */
 router.patch('/:id/status', auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     let { status } = req.body;
 
-    // Normaliza status: rejeitado -> será armazenado como rejeitado
     const statusValidos = ['pendente', 'em análise', 'aprovado', 'reprovado', 'rejeitado', 'rascunho', 'em_analise'];
     if (!status || !statusValidos.includes(status)) {
       return res.status(400).json({

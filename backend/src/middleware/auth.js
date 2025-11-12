@@ -1,10 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Middleware de autenticação
+// Garante a autenticação do usuário a partir do token JWT informado.
 const auth = async (req, res, next) => {
   try {
-    // Verificar se o token existe
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
@@ -14,10 +13,8 @@ const auth = async (req, res, next) => {
       });
     }
 
-    // Verificar token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Buscar usuário
     const user = await User.findById(decoded.id);
     
     if (!user || !user.ativo) {
@@ -27,7 +24,6 @@ const auth = async (req, res, next) => {
       });
     }
 
-    // Adicionar usuário ao request
     req.user = user;
     next();
   } catch (error) {
@@ -53,7 +49,7 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Middleware para verificar se é admin
+// Restringe o acesso da rota a usuários com perfil de administrador.
 const isAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({
@@ -64,7 +60,7 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
-// Middleware para verificar se é client
+// Restringe o acesso da rota a usuários com perfil de cliente.
 const isClient = (req, res, next) => {
   if (req.user.role !== 'client') {
     return res.status(403).json({

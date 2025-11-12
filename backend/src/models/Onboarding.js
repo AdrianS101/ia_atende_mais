@@ -50,7 +50,7 @@ const OnboardingSchema = new mongoose.Schema({
     unique: true
   },
 
-  // Dados principais
+  // Dados empresariais principais do cliente.
   dadosCadastrais: {
     razaoSocial: { type: String, required: true },
     nomeFantasia: { type: String },
@@ -115,7 +115,7 @@ const OnboardingSchema = new mongoose.Schema({
     outrasIntegracoes: { type: String }
   },
 
-  // Documentos armazenados no GridFS
+  // Referências aos documentos submetidos e armazenados no GridFS.
   documentos: [DocumentoSchema],
 
   observacoes: {
@@ -139,7 +139,7 @@ const OnboardingSchema = new mongoose.Schema({
   }
 });
 
-// Atualiza o campo `atualizadoEm` automaticamente antes de salvar
+// Garante o versionamento do registro atualizando `atualizadoEm` a cada persistência.
 OnboardingSchema.pre('save', function (next) {
   this.atualizadoEm = new Date();
   next();
