@@ -1,17 +1,29 @@
-import { Header } from '@/components/Header';
-import { OnboardingViewDialog } from '@/components/OnboardingViewDialog';
-import { Button } from '@/components/ui/button';
-import { getCurrentUser } from '@/services/authService';
-import { deleteOnboarding, getAllOnboardings } from '@/services/onboardingService';
-import { OnboardingData } from '@/types/onboarding';
-import { Eye, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { scheduleService } from '@/services/scheduleService';
-import { ScheduleEntry } from '@/types/schedule';
+import { Header } from "@/components/Header";
+import { OnboardingViewDialog } from "@/components/OnboardingViewDialog";
+import { Button } from "@/components/ui/button";
+import { getCurrentUser } from "@/services/authService";
+import {
+  deleteOnboarding,
+  getAllOnboardings,
+} from "@/services/onboardingService";
+import { OnboardingData } from "@/types/onboarding";
+import { Eye, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { scheduleService } from "@/services/scheduleService";
+import { ScheduleEntry } from "@/types/schedule";
 
-const HORARIOS_VALIDOS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const HORARIOS_VALIDOS = [
+  "09:00",
+  "10:00",
+  "11:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+];
 
 const PainelAdmin = () => {
   const navigate = useNavigate();
@@ -19,49 +31,65 @@ const PainelAdmin = () => {
   const [onboardings, setOnboardings] = useState<OnboardingData[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOnboarding, setSelectedOnboarding] = useState<OnboardingData | null>(null);
+  const [selectedOnboarding, setSelectedOnboarding] =
+    useState<OnboardingData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [onboardingToDelete, setOnboardingToDelete] = useState<string | null>(null);
+  const [onboardingToDelete, setOnboardingToDelete] = useState<string | null>(
+    null
+  );
+  const isLoadingRef = useRef(false);
 
-  useEffect(() => {
-    if (!user || user.tipo !== 'admin') {
-      navigate('/login');
+  const loadOnboardings = useCallback(async () => {
+    // Evita múltiplas chamadas simultâneas
+    if (isLoadingRef.current) {
       return;
     }
 
+    try {
+      isLoadingRef.current = true;
+      setLoading(true);
+      const data = await getAllOnboardings();
+      setOnboardings(data);
+    } catch (error) {
+      console.error("Erro ao carregar onboardings:", error);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user || user.tipo !== "admin") {
+      navigate("/login");
+      return;
+    }
+
+    // Carrega os dados apenas uma vez quando o componente monta ou quando o user.id muda
     loadOnboardings();
-  }, [user, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     setSchedules(scheduleService.listar());
-    const unsubscribe = scheduleService.subscribe((entries) => setSchedules(entries));
+    const unsubscribe = scheduleService.subscribe((entries) =>
+      setSchedules(entries)
+    );
     return () => {
       unsubscribe();
     };
   }, []);
-
-  const loadOnboardings = async () => {
-    try {
-      const data = await getAllOnboardings();
-      setOnboardings(data);
-    } catch (error) {
-      console.error('Erro ao carregar onboardings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!onboardingToDelete) return;
 
     try {
       await deleteOnboarding(onboardingToDelete);
-      toast.success('Onboarding excluído com sucesso');
+      toast.success("Onboarding excluído com sucesso");
       loadOnboardings();
       setDialogOpen(false);
       setOnboardingToDelete(null);
     } catch (error) {
-      toast.error('Erro ao excluir onboarding');
+      toast.error("Erro ao excluir onboarding");
     }
   };
 
@@ -97,9 +125,13 @@ const PainelAdmin = () => {
       const itens = HORARIOS_VALIDOS.map((horario) => {
         const reservado = ocupados.find((item) => item.horario === horario);
         if (reservado) {
-          return { horario, status: 'ocupado' as const, clienteNome: reservado.clienteNome };
+          return {
+            horario,
+            status: "ocupado" as const,
+            clienteNome: reservado.clienteNome,
+          };
         }
-        return { horario, status: 'disponivel' as const };
+        return { horario, status: "disponivel" as const };
       });
 
       return { dateKey, itens };
@@ -109,11 +141,11 @@ const PainelAdmin = () => {
   const formatScheduleDateLabel = (dateKey: string) => {
     try {
       const date = new Date(`${dateKey}T00:00:00`);
-      const label = date.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
+      const label = date.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
       return label.charAt(0).toUpperCase() + label.slice(1);
     } catch {
@@ -123,42 +155,42 @@ const PainelAdmin = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'aprovado':
-        return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'em_analise':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'rejeitado':
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case "aprovado":
+        return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "em_analise":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "rejeitado":
+        return "bg-red-500/20 text-red-400 border-red-500/30";
       default:
-        return 'bg-muted text-muted-foreground border-border';
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'aprovado':
-        return 'Aprovado';
-      case 'em_analise':
-        return 'Em Análise';
-      case 'rejeitado':
-        return 'Rejeitado';
+      case "aprovado":
+        return "Aprovado";
+      case "em_analise":
+        return "Em Análise";
+      case "rejeitado":
+        return "Rejeitado";
       default:
-        return 'Rascunho';
+        return "Rascunho";
     }
   };
 
   const formatDate = (date: string | Date | undefined): string => {
-    if (!date) return '-';
+    if (!date) return "-";
     try {
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
-      if (isNaN(dateObj.getTime())) return '-';
-      return dateObj.toLocaleDateString('pt-BR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+      const dateObj = typeof date === "string" ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) return "-";
+      return dateObj.toLocaleDateString("pt-BR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
     } catch {
-      return '-';
+      return "-";
     }
   };
 
@@ -184,13 +216,19 @@ const PainelAdmin = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Painel Administrativo</h2>
-          <p className="text-muted-foreground">Gerencie todos os onboardings do sistema</p>
+          <h2 className="text-3xl font-bold text-foreground mb-2">
+            Painel Administrativo
+          </h2>
+          <p className="text-muted-foreground">
+            Gerencie todos os onboardings do sistema
+          </p>
         </div>
 
         {onboardings.length === 0 ? (
           <div className="bg-card p-12 rounded-xl border border-border shadow-card text-center">
-            <p className="text-muted-foreground">Nenhum onboarding encontrado</p>
+            <p className="text-muted-foreground">
+              Nenhum onboarding encontrado
+            </p>
           </div>
         ) : (
           <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
@@ -217,16 +255,23 @@ const PainelAdmin = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {onboardings.map((onboarding) => (
-                    <tr key={onboarding.id} className="hover:bg-secondary/30 transition-colors">
+                    <tr
+                      key={onboarding.id}
+                      className="hover:bg-secondary/30 transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-foreground">{onboarding.nomeFantasia}</p>
-                          <p className="text-sm text-muted-foreground">{onboarding.cnpj}</p>
+                          <p className="font-medium text-foreground">
+                            {onboarding.nomeFantasia}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {onboarding.cnpj}
+                          </p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-foreground">
-                          {onboarding.representantesLegais[0]?.nome || '-'}
+                          {onboarding.representantesLegais[0]?.nome || "-"}
                         </p>
                       </td>
                       <td className="px-6 py-4">
@@ -239,7 +284,9 @@ const PainelAdmin = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-foreground">
-                        {formatDate(onboarding.criadoEm || onboarding.dataCriacao)}
+                        {formatDate(
+                          onboarding.criadoEm || onboarding.dataCriacao
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
@@ -272,10 +319,14 @@ const PainelAdmin = () => {
         )}
 
         <div className="mt-12">
-          <h3 className="text-2xl font-semibold text-foreground mb-4">Agendamentos</h3>
+          <h3 className="text-2xl font-semibold text-foreground mb-4">
+            Agendamentos
+          </h3>
           {schedulesPorData.length === 0 ? (
             <div className="bg-card p-8 rounded-xl border border-border shadow-card text-center">
-              <p className="text-muted-foreground">Nenhum agendamento registrado até o momento.</p>
+              <p className="text-muted-foreground">
+                Nenhum agendamento registrado até o momento.
+              </p>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -295,15 +346,19 @@ const PainelAdmin = () => {
                         key={`${dateKey}-${item.horario}`}
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-1"
                       >
-                        <span className="text-sm font-medium text-foreground">{item.horario}</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {item.horario}
+                        </span>
                         <span
                           className={`text-sm ${
-                            item.status === 'ocupado' ? 'text-muted-foreground' : 'text-green-500'
+                            item.status === "ocupado"
+                              ? "text-muted-foreground"
+                              : "text-green-500"
                           }`}
                         >
-                          {item.status === 'ocupado'
-                            ? item.clienteNome || 'Cliente não identificado'
-                            : 'Disponível'}
+                          {item.status === "ocupado"
+                            ? item.clienteNome || "Cliente não identificado"
+                            : "Disponível"}
                         </span>
                       </div>
                     ))}
