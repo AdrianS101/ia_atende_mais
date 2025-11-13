@@ -2,6 +2,7 @@ import { NavLink } from '@/components/SimpleNavLink';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { getCurrentUser, register } from '@/services/authService';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -88,8 +89,7 @@ const RegisterUsuario = () => {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">Senha</label>
-                            <Input
-                                type="password"
+                            <PasswordInput
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
@@ -100,8 +100,7 @@ const RegisterUsuario = () => {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">Confirme a Senha</label>
-                            <Input
-                                type="password"
+                            <PasswordInput
                                 value={confirm}
                                 onChange={(e) => setConfirm(e.target.value)}
                                 placeholder="••••••••"

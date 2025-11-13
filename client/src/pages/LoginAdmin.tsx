@@ -2,6 +2,7 @@ import { NavLink } from '@/components/SimpleNavLink';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { getCurrentUser, login } from '@/services/authService';
 import { Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -83,8 +84,7 @@ const LoginAdmin = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Senha</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
