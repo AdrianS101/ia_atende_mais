@@ -7,7 +7,7 @@ import {
   getAllOnboardings,
 } from "@/services/onboardingService";
 import { OnboardingData } from "@/types/onboarding";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, RefreshCw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -27,7 +27,9 @@ const HORARIOS_VALIDOS = [
 
 const PainelAdmin = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  // Memoiza o user para evitar mudanças de referência
+  const user = useMemo(() => getCurrentUser(), []);
+  const userId = useMemo(() => user?.id, [user?.id]);
   const [onboardings, setOnboardings] = useState<OnboardingData[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,36 +40,54 @@ const PainelAdmin = () => {
     null
   );
   const isLoadingRef = useRef(false);
+  const hasLoadedOnceRef = useRef(false);
 
-  const loadOnboardings = useCallback(async () => {
-    // Evita múltiplas chamadas simultâneas
-    if (isLoadingRef.current) {
-      return;
-    }
+  const loadOnboardings = useCallback(
+    async (showToast = false) => {
+      // Evita múltiplas chamadas simultâneas
+      if (isLoadingRef.current) {
+        return;
+      }
 
-    try {
-      isLoadingRef.current = true;
-      setLoading(true);
-      const data = await getAllOnboardings();
-      setOnboardings(data);
-    } catch (error) {
-      console.error("Erro ao carregar onboardings:", error);
-    } finally {
-      setLoading(false);
-      isLoadingRef.current = false;
-    }
-  }, []);
+      if (!userId) {
+        return;
+      }
 
+      try {
+        isLoadingRef.current = true;
+        setLoading(true);
+        const data = await getAllOnboardings();
+        setOnboardings(data);
+        hasLoadedOnceRef.current = true;
+        if (showToast) {
+          toast.success("Dados atualizados com sucesso");
+        }
+      } catch (error) {
+        console.error("Erro ao carregar onboardings:", error);
+        if (showToast) {
+          toast.error("Erro ao carregar onboardings");
+        }
+      } finally {
+        setLoading(false);
+        isLoadingRef.current = false;
+      }
+    },
+    [userId]
+  );
+
+  // Carrega os dados apenas uma vez quando o componente monta
   useEffect(() => {
     if (!user || user.tipo !== "admin") {
       navigate("/login");
       return;
     }
 
-    // Carrega os dados apenas uma vez quando o componente monta ou quando o user.id muda
-    loadOnboardings();
+    // Carrega apenas na primeira montagem
+    if (!hasLoadedOnceRef.current && userId) {
+      loadOnboardings();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     setSchedules(scheduleService.listar());
@@ -85,12 +105,22 @@ const PainelAdmin = () => {
     try {
       await deleteOnboarding(onboardingToDelete);
       toast.success("Onboarding excluído com sucesso");
-      loadOnboardings();
+      // Recarrega os dados após exclusão
+      await loadOnboardings();
       setDialogOpen(false);
       setOnboardingToDelete(null);
     } catch (error) {
       toast.error("Erro ao excluir onboarding");
     }
+  };
+
+  const handleStatusChange = useCallback(async () => {
+    // Recarrega os dados após mudança de status
+    await loadOnboardings();
+  }, [loadOnboardings]);
+
+  const handleRefresh = () => {
+    loadOnboardings(true);
   };
 
   const openViewDialog = (onboarding: OnboardingData) => {
@@ -215,13 +245,25 @@ const PainelAdmin = () => {
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">
-            Painel Administrativo
-          </h2>
-          <p className="text-muted-foreground">
-            Gerencie todos os onboardings do sistema
-          </p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground mb-2">
+              Painel Administrativo
+            </h2>
+            <p className="text-muted-foreground">
+              Gerencie todos os onboardings do sistema
+            </p>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+            className="gap-2 self-start sm:self-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            {loading ? "Atualizando..." : "Atualizar"}
+          </Button>
         </div>
 
         {onboardings.length === 0 ? (
@@ -380,7 +422,7 @@ const PainelAdmin = () => {
             }
           }}
           onDelete={onboardingToDelete ? handleDelete : undefined}
-          onStatusChange={loadOnboardings}
+          onStatusChange={handleStatusChange}
         />
       </main>
     </div>
