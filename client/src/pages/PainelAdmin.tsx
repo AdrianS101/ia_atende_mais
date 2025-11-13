@@ -27,9 +27,10 @@ const HORARIOS_VALIDOS = [
 
 const PainelAdmin = () => {
   const navigate = useNavigate();
-  // Memoiza o user para evitar mudanças de referência
-  const user = useMemo(() => getCurrentUser(), []);
-  const userId = useMemo(() => user?.id, [user?.id]);
+  
+  // Calcula user apenas uma vez
+  const [user] = useState(() => getCurrentUser());
+  
   const [onboardings, setOnboardings] = useState<OnboardingData[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,56 +40,53 @@ const PainelAdmin = () => {
   const [onboardingToDelete, setOnboardingToDelete] = useState<string | null>(
     null
   );
+  
   const isLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
 
-  const loadOnboardings = useCallback(
-    async (showToast = false) => {
-      // Evita múltiplas chamadas simultâneas
-      if (isLoadingRef.current) {
-        return;
-      }
+  // loadOnboardings estável - sem dependências que mudam
+  const loadOnboardings = useCallback(async (showToast = false) => {
+    if (isLoadingRef.current) {
+      return;
+    }
 
-      if (!userId) {
-        return;
-      }
+    if (!user?.id) {
+      return;
+    }
 
-      try {
-        isLoadingRef.current = true;
-        setLoading(true);
-        const data = await getAllOnboardings();
-        setOnboardings(data);
-        hasLoadedOnceRef.current = true;
-        if (showToast) {
-          toast.success("Dados atualizados com sucesso");
-        }
-      } catch (error) {
-        console.error("Erro ao carregar onboardings:", error);
-        if (showToast) {
-          toast.error("Erro ao carregar onboardings");
-        }
-      } finally {
-        setLoading(false);
-        isLoadingRef.current = false;
+    try {
+      isLoadingRef.current = true;
+      setLoading(true);
+      const data = await getAllOnboardings();
+      setOnboardings(data);
+      hasLoadedOnceRef.current = true;
+      if (showToast) {
+        toast.success("Dados atualizados com sucesso");
       }
-    },
-    [userId]
-  );
+    } catch (error) {
+      console.error("Erro ao carregar onboardings:", error);
+      if (showToast) {
+        toast.error("Erro ao carregar onboardings");
+      }
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [user?.id]); // Apenas user.id como dependência
 
-  // Carrega os dados apenas uma vez quando o componente monta
+  // Carrega dados apenas uma vez
   useEffect(() => {
     if (!user || user.tipo !== "admin") {
       navigate("/login");
       return;
     }
 
-    // Carrega apenas na primeira montagem
-    if (!hasLoadedOnceRef.current && userId) {
+    if (!hasLoadedOnceRef.current) {
       loadOnboardings();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [user, navigate, loadOnboardings]);
 
+  // Gerencia schedules
   useEffect(() => {
     setSchedules(scheduleService.listar());
     const unsubscribe = scheduleService.subscribe((entries) =>
@@ -105,7 +103,6 @@ const PainelAdmin = () => {
     try {
       await deleteOnboarding(onboardingToDelete);
       toast.success("Onboarding excluído com sucesso");
-      // Recarrega os dados após exclusão
       await loadOnboardings();
       setDialogOpen(false);
       setOnboardingToDelete(null);
@@ -114,8 +111,8 @@ const PainelAdmin = () => {
     }
   };
 
+  // handleStatusChange agora apenas chama loadOnboardings diretamente
   const handleStatusChange = useCallback(async () => {
-    // Recarrega os dados após mudança de status
     await loadOnboardings();
   }, [loadOnboardings]);
 
