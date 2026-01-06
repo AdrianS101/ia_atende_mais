@@ -349,28 +349,29 @@ router.delete('/:id', auth, isAdmin, async (req, res) => {
 router.patch('/:id/status', auth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    let { status } = req.body;
+    const { status } = req.body;
 
     const statusValidos = [
-      'pendente',
+      'rascunho',
       'em_analise',
       'aprovado',
-      'reprovado',
-      'rejeitado',
-      'rascunho'
+      'rejeitado'
     ];
-    
+
     if (!status || !statusValidos.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Status inválido. Valores permitidos: ' + statusValidos.join(', ')
+        message: 'Status inválido'
       });
     }
 
     const onboarding = await Onboarding.findByIdAndUpdate(
       id,
       { status, atualizadoEm: new Date() },
-      { new: true }
+      {
+        new: true,
+        runValidators: true
+      }
     );
 
     if (!onboarding) {
@@ -386,6 +387,7 @@ router.patch('/:id/status', auth, isAdmin, async (req, res) => {
       data: onboarding
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Erro ao atualizar status',
