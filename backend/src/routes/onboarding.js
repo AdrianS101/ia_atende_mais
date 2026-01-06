@@ -351,7 +351,15 @@ router.patch('/:id/status', auth, isAdmin, async (req, res) => {
     const { id } = req.params;
     let { status } = req.body;
 
-    const statusValidos = ['pendente', 'em análise', 'aprovado', 'reprovado', 'rejeitado', 'rascunho', 'em_analise'];
+    const statusValidos = [
+      'pendente',
+      'em_analise',
+      'aprovado',
+      'reprovado',
+      'rejeitado',
+      'rascunho'
+    ];
+    
     if (!status || !statusValidos.includes(status)) {
       return res.status(400).json({
         success: false,
