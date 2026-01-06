@@ -123,11 +123,18 @@ const OnboardingSchema = new mongoose.Schema({
     default: ''
   },
 
-  status: {
-    type: String,
-    enum: ['pendente', 'em análise', 'aprovado', 'reprovado', 'rejeitado', 'rascunho', 'em_analise'],
-    default: 'rascunho'
-  },
+status: {
+  type: String,
+  enum: [
+    'pendente',
+    'em_analise',
+    'aprovado',
+    'reprovado',
+    'rejeitado',
+    'rascunho'
+  ],
+  default: 'rascunho'
+},
 
   criadoEm: {
     type: Date,
